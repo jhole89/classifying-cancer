@@ -119,24 +119,28 @@ def evaluate_model(model, test_data, steps):
 
 
 def new_samples(feature_names):
+    """Input new samples for classification"""
+
     request_input = 0
 
     while int(request_input) not in [1, 2]:
         request_input = input(
             "Predict classification: Enter own data (1) or simulate fake data (2) ?\n Enter 1 or 2: ")
     if int(request_input) == 1:
-        sample = np.array([int(input("Enter value 0-10 for %s" % x)) for x in feature_names], dtype=np.float32)
+        sample = np.array([[int(input("Enter value 0-10 for %s: " % x)) for x in feature_names]], dtype=np.float32)
     else:
-        sample = np.random.randint(11, size=len(feature_names)).astype(np.float32)
+        sample = np.array([np.random.randint(11, size=len(feature_names))], dtype=np.float32)
 
     return sample
 
 
 def predict_class(model):
+    """Predict classification for new data"""
+
     predict_loop = 'Y'
 
     while predict_loop.upper() == 'Y':
-        prediction = model.predict(input_fn=lambda: new_samples(feature_names))
+        prediction = list(model.predict(input_fn=lambda: new_samples(feature_names)))
 
         print("\nClass Prediction:    {}\n".format(prediction))
 
