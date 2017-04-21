@@ -82,11 +82,11 @@ def load_tensor_data(dataset):
                 target_column=-1)
 
 
-def get_inputs(set):
+def get_inputs(data_set):
     """Define inputs for tensor input_fn"""
 
-    data = tf.constant(set.data)
-    target = tf.constant(set.target)
+    data = tf.constant(data_set.data)
+    target = tf.constant(data_set.target)
 
     return data, target
 
@@ -114,7 +114,7 @@ def fit_model(model, train_data, steps):
 def evaluate_model(model, test_data, steps):
     """Evaluate model with custom input function"""
 
-    accuracy_score = model.evaluate(input_fn=lambda: get_inputs(test_data), steps=1)["accuracy"]
+    accuracy_score = model.evaluate(input_fn=lambda: get_inputs(test_data), steps=steps)["accuracy"]
     print("\nModel Accuracy: {0:f}\n".format(accuracy_score))
 
 
