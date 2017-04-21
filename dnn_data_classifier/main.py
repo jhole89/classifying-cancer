@@ -157,7 +157,7 @@ if __name__ == '__main__':
     clean_run(model_dir=model_dir)
 
     feature_names = ['clump_thickness', 'unif_cell_size', 'unif_cell_shape', 'marg_adhesion',
-                     'single_epith_cell_size', 'bare_nuclei','bland_chrom', 'norm_nucleoli', 'mitoses']
+                     'single_epith_cell_size', 'bare_nuclei', 'bland_chrom', 'norm_nucleoli', 'mitoses']
 
     column_names = ['id'] + feature_names + ['class']
 
