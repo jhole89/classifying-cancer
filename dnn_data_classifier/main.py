@@ -125,24 +125,28 @@ def new_samples(feature_names):
 
     while int(request_input) not in [1, 2]:
         request_input = input(
-            "Predict classification: Enter own data (1) or simulate fake data (2) ?\n Enter 1 or 2: ")
+            "Predict classification: Enter own data (1) or simulate fake data (2)?\n Enter 1 or 2: ")
     if int(request_input) == 1:
         sample = np.array([[int(input("Enter value 0-10 for %s: " % x)) for x in feature_names]], dtype=np.float32)
     else:
         sample = np.array([np.random.randint(11, size=len(feature_names))], dtype=np.float32)
 
+        print("Data generated:")
+        for i, x in enumerate(feature_names):
+            print("%s: %s" % (x, i))
+
     return sample
 
 
-def predict_class(model):
+def predict_class(model, binary_mappings):
     """Predict classification for new data"""
 
     predict_loop = 'Y'
 
     while predict_loop.upper() == 'Y':
-        prediction = list(model.predict(input_fn=lambda: new_samples(feature_names)))
+        binary_prediction = list(model.predict(input_fn=lambda: new_samples(feature_names)))
 
-        print("\nClass Prediction:    {}\n".format(prediction))
+        print("\nClass Prediction: %s\n" % binary_mappings[binary_prediction[0]])
 
         predict_loop = input("Would you like to try another prediction? Enter Y/N: ")
 
@@ -172,4 +176,4 @@ if __name__ == '__main__':
     fit_model(dnn_model, train_set, steps=2000)
     evaluate_model(dnn_model, test_set, steps=1)
 
-    predict_class(dnn_model)
+    predict_class(dnn_model, {0: 'benign', 1: 'malignant'})
