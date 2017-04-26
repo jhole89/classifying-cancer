@@ -8,8 +8,7 @@ from progressbar import ProgressBar, Percentage, Bar
 
 class FileSystemManager:
 
-    def __init__(self, log_level, source_data, download_url, model_dir, source_dir):
-        self.log_level = log_level
+    def __init__(self, source_data, download_url, model_dir, source_dir):
         self.source_data = source_data
         self.download_url = download_url
         self.model_dir = model_dir
@@ -22,9 +21,11 @@ class FileSystemManager:
         for directory in [self.model_dir, self.source_dir]:
             if directory:
                 if os.path.exists(directory):
-                    print("Deleting resource: Directory [%s]." % directory)
-                    shutil.rmtree(directory)
-                    print("Removed resource: Directory [%s]." % directory)
+                    try:
+                        logging.info("Removing resource: Directory [%s].", directory)
+                        shutil.rmtree(directory)
+                    except OSError:
+                        logging.error("Could not remove resource: Directory [%s].", directory)
 
     def download(self):
         """Download data if not present on local FileSystem"""
@@ -35,9 +36,8 @@ class FileSystemManager:
         download_url = self.download_url + '/' + self.source_data
 
         if not os.path.exists(self.source_data):
-            print(
-                "%s not found on local filesystem. File will be downloaded from %s."
-                % (self.source_data, download_url))
+            logging.info(
+                "%s not found on local filesystem. File will be downloaded from %s.", self.source_data, download_url)
 
             pbar = ProgressBar(widgets=[Percentage(), Bar()])
             urlretrieve(download_url, self.source_data, reporthook=progress)
@@ -48,7 +48,7 @@ class FileSystemManager:
         self.archive_dir = self.source_data.split('.')[0]
 
         if not os.path.exists(self.archive_dir):
-            print("Extracting archive %s to %s" % (self.source_data, self.archive_dir))
+            logging.info("Extracting archive %s to %s", self.source_data, self.archive_dir)
 
             if self.source_data.lower().endswith('.tar.gz'):
                 tar = tarfile.open(self.source_data, "r:gz")
@@ -61,9 +61,11 @@ class FileSystemManager:
         for root, dirs, files in os.walk(self.source_dir):
             for current_file in files:
                 if not current_file.lower().endswith(extension):
-                    if self.log_level == 'verbose':
-                        print("Removing %s" % current_file)
-                    os.remove(os.path.join(root, current_file))
+                    try:
+                        logging.debug("Removing resource: File [%s]", current_file)
+                        os.remove(os.path.join(root, current_file))
+                    except OSError:
+                        logging.error("Could not remove resource: File [%s]", current_file)
 
     def flatten(self):
         """Flattens directory tree to single level"""
@@ -74,14 +76,14 @@ class FileSystemManager:
             for filename in filenames:
 
                 try:
-                    if self.log_level == 'verbose':
-                        print("Moving %s from %s to %s" % (filename, dirpath, self.source_dir))
+                    logging.debug("Moving %s from %s to %s", filename, dirpath, self.source_dir)
                     os.rename(os.path.join(dirpath, filename), os.path.join(self.source_dir, filename))
 
                 except OSError:
-                    if self.log_level in ['verbose', 'error']:
-                        print("Could not move %s " % os.path.join(dirpath, filename))
+                    logging.error("Could not move %s ", os.path.join(dirpath, filename))
 
-        print("Deleting resource: Directory [%s]." % self.archive_dir)
-        shutil.rmtree(self.archive_dir)
-        print("Removed resource: Directory [%s]." % self.archive_dir)
+        try:
+            logging.info("Removing resource: Directory [%s].", self.archive_dir)
+            shutil.rmtree(self.archive_dir)
+        except OSError:
+            logging.error("Could not remove resource: Directory [%s].", self.archive_dir)
