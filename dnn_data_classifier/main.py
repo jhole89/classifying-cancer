@@ -32,7 +32,7 @@ def download_data(data_file, url):
     if not os.path.exists(data_file):
         print(
             "%s not found on local filesystem. File will be downloaded from %s."
-            % (data_file, data_url + data_file))
+            % (data_file, download_url))
 
         raw = urlopen(download_url).read()
 
