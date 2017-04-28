@@ -1,19 +1,15 @@
 import os
-import tarfile
 import shutil
 import logging
-from urllib.request import urlretrieve
-from progressbar import ProgressBar, Percentage, Bar
+import tarfile
 
 
 class FileSystemManager:
 
-    def __init__(self, source_data, download_url, model_dir, source_dir):
-        self.source_data = source_data
-        self.download_url = download_url
+    def __init__(self, source_dir=None, model_dir=None):
+        self.source_dir = source_dir
         self.model_dir = model_dir
         self.archive_dir = None
-        self.source_dir = source_dir
 
     def clean_run(self):
         """Remove model and data dirs for a clean run"""
@@ -27,38 +23,25 @@ class FileSystemManager:
                     except OSError:
                         logging.error("Could not remove resource: Directory [%s].", directory)
 
-    def download(self):
-        """Download data if not present on local FileSystem"""
-
-        def progress(count, blockSize, totalSize):
-            pbar.update(int(count * blockSize * 100 / totalSize))
-
-        download_url = self.download_url + '/' + self.source_data
-
-        if not os.path.exists(self.source_data):
-            logging.info(
-                "%s not found on local filesystem. File will be downloaded from %s.", self.source_data, download_url)
-
-            pbar = ProgressBar(widgets=[Percentage(), Bar()])
-            urlretrieve(download_url, self.source_data, reporthook=progress)
-
-    def extract(self):
+    def extract_archive(self, archive):
         """Extract compressed archives tar.gz"""
 
-        self.archive_dir = self.source_data.split('.')[0]
+        self.archive_dir = archive.split('.')[0]
 
         if not os.path.exists(self.archive_dir):
-            logging.info("Extracting archive %s to %s", self.source_data, self.archive_dir)
+            logging.info("Extracting archive %s to %s", archive, self.archive_dir)
 
-            if self.source_data.lower().endswith('.tar.gz'):
-                tar = tarfile.open(self.source_data, "r:gz")
+            if archive.lower().endswith('.tar.gz'):
+                tar = tarfile.open(archive, "r:gz")
             tar.extractall()
             tar.close()
 
-    def clean_files(self, extension):
+        return self.archive_dir
+
+    def remove_files_except(self, extension):
         """Removes all files not ending in extension"""
 
-        for root, dirs, files in os.walk(self.source_dir):
+        for root, dirs, files in os.walk(self.archive_dir):
             for current_file in files:
                 if not current_file.lower().endswith(extension):
                     try:
@@ -67,23 +50,34 @@ class FileSystemManager:
                     except OSError:
                         logging.error("Could not remove resource: File [%s]", current_file)
 
-    def flatten(self):
+    def flatten_directory(self, directory):
         """Flattens directory tree to single level"""
 
         os.mkdir(self.source_dir)
 
-        for dirpath, dirnames, filenames in os.walk(self.archive_dir):
-            for filename in filenames:
+        for root, dirs, files in os.walk(directory):
+            for filename in files:
 
                 try:
-                    logging.debug("Moving %s from %s to %s", filename, dirpath, self.source_dir)
-                    os.rename(os.path.join(dirpath, filename), os.path.join(self.source_dir, filename))
+                    logging.debug("Moving %s from %s to %s", filename, root, self.source_dir)
+                    os.rename(os.path.join(root, filename), os.path.join(self.source_dir, filename))
 
                 except OSError:
-                    logging.error("Could not move %s ", os.path.join(dirpath, filename))
+                    logging.error("Could not move %s ", os.path.join(root, filename))
 
         try:
             logging.info("Removing resource: Directory [%s].", self.archive_dir)
             shutil.rmtree(self.archive_dir)
         except OSError:
             logging.error("Could not remove resource: Directory [%s].", self.archive_dir)
+
+    def index_directory(self):
+        """Generate index for directory"""
+
+        labels = []
+
+        for root, dirs, files in os.walk(self.source_dir):
+            for file in files:
+                labels.append(file[4])
+
+        return files, labels
