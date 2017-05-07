@@ -2,6 +2,8 @@ import os
 import shutil
 import logging
 import tarfile
+import pandas as pd
+from sklearn.model_selection import train_test_split
 
 
 class FileSystemManager:
@@ -74,10 +76,18 @@ class FileSystemManager:
     def index_directory(self):
         """Generate index for directory"""
 
-        labels = []
+        file_list = []
 
         for root, dirs, files in os.walk(self.source_dir):
             for file in files:
-                labels.append(file[4])
+                file_list.append({'filename': root + '/' + file, 'label': file[4]})
 
-        return files, labels
+        return file_list
+
+    def split_sets(self, file_list, test_rate):
+        file_list_df = pd.DataFrame.from_dict(file_list)
+
+        file_list_df['label'].replace(['B', 'M'], [0, 1], inplace=True)
+        train_set, test_set = train_test_split(file_list_df, test_size=test_rate, random_state=0)
+
+        return train_set.to_dict('list'), test_set.to_dict('list')
