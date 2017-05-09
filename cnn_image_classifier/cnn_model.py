@@ -38,7 +38,6 @@ def new_conv_layer(layer, num_input_channels, num_filters, filter_size=3, poolin
     shape = [filter_size, filter_size, num_input_channels, num_filters]
 
     weights = new_weights(shape=shape)
-
     bias = new_bias(length=num_filters)
 
     layer = conv2d(layer, weights) + bias
@@ -62,8 +61,22 @@ def flatten_layer(layer):
     return layer_flat, num_features
 
 
-def train(file_list):
+def new_fc_layer(layer, num_inputs, num_outputs, relu=True):
 
+    weights = new_weights([num_inputs, num_outputs])
+    bias = new_bias(num_outputs)
+
+    layer = tf.matmul(layer, weights) + bias
+
+    if relu:
+        layer = tf.nn.relu(layer)
+
+    return layer
+
+
+def train(train_file_list, test_file_list, log_path='tmp/tensorflow/cnn/logs/cnn_with_summaries'):
+
+    sess = tf.InteractiveSession()
     num_classes = 2
     x_pixels = 700
     y_pixels = 460
@@ -71,23 +84,15 @@ def train(file_list):
 
     image_pixels = x_pixels * y_pixels * colour_channels
 
-    image_batch, labels = batch_images(file_list, x_pixels, y_pixels, colour_channels)
-
     with tf.name_scope('input'):
         image_placeholder = tf.placeholder(tf.float32, shape=[None, image_pixels], name='image-input')
         label_placeholder = tf.placeholder(tf.float32, shape=[None, num_classes], name='label-input')
-
-    with tf.name_scope('weights'):
-        weight = tf.Variable(tf.zeros([image_pixels, num_classes]))
-
-    with tf.name_scope('biases'):
-        bias = tf.Variable(tf.zeros([num_classes]))
 
     reshaped_images = tf.reshape(image_placeholder, [-1, x_pixels, y_pixels, colour_channels])
 
     layer1_output_channels = 32
 
-    layer_conv1, weights_conv1 = new_conv_layer(layer=image_placeholder,
+    layer_conv1, weights_conv1 = new_conv_layer(layer=reshaped_images,
                                                 num_input_channels=colour_channels,
                                                 num_filters=layer1_output_channels)
 
@@ -101,3 +106,46 @@ def train(file_list):
 
     layer_flat, num_features = flatten_layer(layer_conv3)
 
+    layer_fc1 = new_fc_layer(layer_flat, num_features, num_outputs=128)
+
+    layer_fc2 = new_fc_layer(layer_fc1, num_inputs=128, num_outputs=num_classes, relu=False)
+
+    with tf.name_scope('softmax'):
+        model_prediction = tf.nn.softmax(layer_fc2)
+
+    with tf.name_scope('cross_entropy'):
+        cross_entropy = tf.reduce_mean(
+            tf.nn.softmax_cross_entropy_with_logits(logits=layer_fc2, labels=label_placeholder))
+
+    with tf.name_scope('optimizer'):
+        optimizer = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
+
+    with tf.name_scope('Accuracy'):
+        correct_prediction = tf.equal(tf.argmax(model_prediction, 1), tf.argmax(label_placeholder, 1))
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+    tf.summary.scalar('cost', cross_entropy)
+    tf.summary.scalar('accuracy', accuracy)
+
+    summary_op = tf.summary.merge_all()
+
+    sess.run(tf.global_variables_initializer())
+
+    writer = tf.summary.FileWriter(log_path, graph=tf.get_default_graph())
+
+    train_images, train_labels = batch_images(train_file_list, x_pixels, y_pixels, colour_channels)
+    test_images, test_labels = batch_images(test_file_list, x_pixels, y_pixels, colour_channels)
+
+    for i in range(20000):
+
+        if i % 100 == 0:
+            train_accuracy = accuracy.eval(
+                feed_dict={image_placeholder: train_images, label_placeholder: train_labels})
+
+            print("step %d, training accuracy %g" % (i, train_accuracy))
+
+        optimizer.run(feed_dict={image_placeholder: train_images, label_placeholder: train_labels})
+
+    # evaluate model
+    print("test accuracy %g" % accuracy.eval(
+        feed_dict={image_placeholder: test_images, label_placeholder: test_labels}))

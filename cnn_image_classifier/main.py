@@ -18,4 +18,5 @@ file_manager.flatten_directory(extract_dir)
 
 file_index = file_manager.index_directory()
 train_list, test_list = file_manager.split_sets(file_index, test_rate=0.2)
-train(train_list)
+train(train_list, test_list)
+
