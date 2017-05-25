@@ -21,9 +21,26 @@ def train():
 
     image_height = 460
     image_width = 700
+    colour_channels = 3
 
-    allX = np.zeros((n_files, image_height, image_width, 3), dtype='float64')
+    allX = np.zeros((n_files, image_height, image_width, colour_channels), dtype='float64')
     allY = np.zeros(n_files)
     count = 0
 
-    for f in malignant_files:
+    for file in malignant_files:
+        try:
+            img = io.imread(file)
+            new_img = imresize(img, (image_height, image_width, colour_channels))
+            allX[count] = np.array(new_img)
+            count += 1
+        except:
+            continue
+
+    for file in benign_files:
+        try:
+            img = io.imread(file)
+            new_img = imresize(img, (image_height, image_width, colour_channels))
+            allX[count] = np.array(new_img)
+            count += 1
+        except:
+            continue
