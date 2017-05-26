@@ -2,9 +2,14 @@ import os
 from glob import glob
 import numpy as np
 import tflearn
+from tflearn.data_utils import to_categorical,
+from tflearn.data_preprocessing import ImagePreprocessing
+from tflearn.data_augmentation import ImageAugmentation
+from tflearn.layers.core import input_data
 from skimage import color, io
 from scipy.misc import imresize
 from sklearn.model_selection import train_test_split
+
 
 def train():
 
@@ -44,3 +49,21 @@ def train():
             count += 1
         except:
             continue
+
+    X, X_test, Y, Y_test = train_test_split(allX, allY, test_size=0.1, random_state=42)
+
+    Y = to_categorical(Y, 2)
+    Y_test = to_categorical(Y_test, 2)
+
+    img_prep = ImagePreprocessing()
+    img_prep.add_featurewise_zero_center()
+    img_prep.add_featurewise_stdnorm()
+
+    img_aug = ImageAugmentation()
+    img_aug.add_random_flip_leftright()
+    img_aug.add_random_flip_updown()
+
+    network = input_data(shape=[None, image_height, image_width, colour_channels],
+                         data_preprocessing=img_prep,
+                         data_augmentation=img_aug)
+
