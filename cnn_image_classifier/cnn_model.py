@@ -2,10 +2,13 @@ import os
 from glob import glob
 import numpy as np
 import tflearn
-from tflearn.data_utils import to_categorical,
+from tflearn.data_utils import to_categorical
 from tflearn.data_preprocessing import ImagePreprocessing
 from tflearn.data_augmentation import ImageAugmentation
-from tflearn.layers.core import input_data
+from tflearn.layers.core import input_data, fully_connected, dropout
+from tflearn.layers.conv import conv_2d, max_pool_2d
+from tflearn.layers.estimator import regression
+from tflearn.metrics import Accuracy
 from skimage import color, io
 from scipy.misc import imresize
 from sklearn.model_selection import train_test_split
@@ -67,3 +70,29 @@ def train():
                          data_preprocessing=img_prep,
                          data_augmentation=img_aug)
 
+    conv_1 = conv_2d(network, 32, colour_channels, activation='relu', name='conv_1')
+
+    network = max_pool_2d(conv_1, 2)
+
+    conv_2 = conv_2d(network, 64, colour_channels, activation='relu', name='conv_2')
+
+    conv_3 = conv_2d(conv_2, 64, colour_channels, activation='relu', name='conv_3')
+
+    network = max_pool_2d(conv_3, 2)
+
+    network = fully_connected(network, 512, activation='relu')
+
+    network = dropout(network, 0.5)
+
+    network = fully_connected(network, 2, activation='softmax')
+
+    acc = Accuracy(name='Accuracy')
+
+    network = regression(network, optimizer='adam', loss='categorical_crossentropy', learning_rate='0.0005', metric=acc)
+
+    model = tflearn.DNN(network, checkpoint_path='cnn_classifier/checkpoints/model.tflearn', max_checkpoints=3,
+                        tensorboard_verbose=3, tensorboard_dir='cnn_classifier/tflearn_logs/')
+
+    model.fit(X, Y, validation_set=(X_test, Y_test), batch_size=500, n_epoch=100, run_id='model', show_metric=True)
+
+    model.save('model_final.tflearn')
