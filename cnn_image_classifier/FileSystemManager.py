@@ -52,20 +52,21 @@ class FileSystemManager:
                     except OSError:
                         logging.error("Could not remove resource: File [%s]", current_file)
 
-    def flatten_directory(self, directory):
+    def flatten_directory(self, directory, mag_lvl):
         """Flattens directory tree to single level"""
 
         os.mkdir(self.source_dir)
 
         for root, dirs, files in os.walk(directory):
-            for filename in files:
+                if root.split('/')[-1] == mag_lvl:
+                    for filename in files:
 
-                try:
-                    logging.debug("Moving %s from %s to %s", filename, root, self.source_dir)
-                    os.rename(os.path.join(root, filename), os.path.join(self.source_dir, filename))
+                        try:
+                            logging.debug("Moving %s from %s to %s", filename, root, self.source_dir)
+                            os.rename(os.path.join(root, filename), os.path.join(self.source_dir, filename))
 
-                except OSError:
-                    logging.error("Could not move %s ", os.path.join(root, filename))
+                        except OSError:
+                            logging.error("Could not move %s ", os.path.join(root, filename))
 
         try:
             logging.info("Removing resource: Directory [%s].", self.archive_dir)

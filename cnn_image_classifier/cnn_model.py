@@ -90,8 +90,8 @@ def train():
 
     network = regression(network, optimizer='adam', loss='categorical_crossentropy', learning_rate='0.0005', metric=acc)
 
-    model = tflearn.DNN(network, checkpoint_path='cnn_classifier/checkpoints/model.tflearn', max_checkpoints=3,
-                        tensorboard_verbose=3, tensorboard_dir='cnn_classifier/tflearn_logs/')
+    model = tflearn.DNN(network, checkpoint_path='tmp/tflearn/cnn/checkpoints/model.tflearn', max_checkpoints=3,
+                        tensorboard_verbose=3, tensorboard_dir='tmp/tflearn/cnn/logs/')
 
     model.fit(X, Y, validation_set=(X_test, Y_test), batch_size=500, n_epoch=100, run_id='model', show_metric=True)
 
