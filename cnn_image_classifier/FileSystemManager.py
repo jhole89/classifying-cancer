@@ -1,9 +1,9 @@
 import os
+import re
 import shutil
 import logging
 import tarfile
-import pandas as pd
-from sklearn.model_selection import train_test_split
+from random import random
 
 
 class FileSystemManager:
@@ -20,10 +20,11 @@ class FileSystemManager:
             if directory:
                 if os.path.exists(directory):
                     try:
-                        logging.info("Removing resource: Directory [%s].", directory)
+                        logging.info("Removing resource: Directory [%s].", os.path.join(os.getcwd(), directory))
                         shutil.rmtree(directory)
                     except OSError:
-                        logging.error("Could not remove resource: Directory [%s].", directory)
+                        logging.error(
+                            "Could not remove resource: Directory [%s].", os.path.join(os.getcwd(), directory))
 
     def extract_archive(self, archive):
         """Extract compressed archives tar.gz"""
@@ -31,10 +32,14 @@ class FileSystemManager:
         self.archive_dir = archive.split('.')[0]
 
         if not os.path.exists(self.archive_dir):
-            logging.info("Extracting archive %s to %s", archive, self.archive_dir)
+            logging.info("Extracting archive %s to %s", archive, os.path.join(os.getcwd(), self.archive_dir))
 
             if archive.lower().endswith('.tar.gz'):
                 tar = tarfile.open(archive, "r:gz")
+            else:
+                logging.error("File extension not currently supported.")
+                return
+
             tar.extractall()
             tar.close()
 
@@ -45,50 +50,82 @@ class FileSystemManager:
 
         for root, dirs, files in os.walk(self.archive_dir):
             for current_file in files:
+
                 if not current_file.lower().endswith(extension):
+
                     try:
-                        logging.debug("Removing resource: File [%s]", current_file)
+                        logging.debug("Removing resource: File [%s]", os.path.join(root, current_file))
                         os.remove(os.path.join(root, current_file))
                     except OSError:
-                        logging.error("Could not remove resource: File [%s]", current_file)
+                        logging.error("Could not remove resource: File [%s]", os.path.join(root, current_file))
 
-    def flatten_directory(self, directory, mag_lvl):
+    def data_science_fs(self, category0, category1):
+        """Makes data science file system for ML modelling"""
+
+        for new_dir in ['train', 'test']:
+            for new_category in [category0, category1]:
+
+                logging.info(
+                    "Creating resource: Directory [%s]",
+                    os.path.join(os.getcwd(), ''.join([self.source_dir, '/', new_dir, '/', new_category])))
+                os.makedirs(os.path.join(self.source_dir, new_dir + '/' + new_category))
+
+    def organise_files(self, directory, category_rules):
         """Flattens directory tree to single level"""
 
-        os.mkdir(self.source_dir)
+        test_ratio = 0.2
 
         for root, dirs, files in os.walk(directory):
-                if root.split('/')[-1] == mag_lvl:
-                    for filename in files:
+            for file in files:
 
-                        try:
-                            logging.debug("Moving %s from %s to %s", filename, root, self.source_dir)
-                            os.rename(os.path.join(root, filename), os.path.join(self.source_dir, filename))
+                if re.compile(list(category_rules.values())[0]).match(file):
 
-                        except OSError:
-                            logging.error("Could not move %s ", os.path.join(root, filename))
+                    if random() < test_ratio:
+                        train_test_dir = 'test/'
+
+                    else:
+                        train_test_dir = 'train/'
+
+                    try:
+                        logging.debug(
+                            "Moving %s from %s to %s", file, root,
+                            os.path.join(self.source_dir, train_test_dir + list(category_rules.keys())[0]))
+
+                        os.rename(
+                            os.path.join(root, file),
+                            os.path.join(
+                                self.source_dir,
+                                ''.join([train_test_dir, list(category_rules.keys())[0], '/', file])))
+
+                    except OSError:
+                        logging.error("Could not move %s ", os.path.join(root, file))
+
+                elif re.compile(list(category_rules.values())[1]).match(file):
+
+                    if random() < test_ratio:
+                        train_test_dir = 'test/'
+
+                    else:
+                        train_test_dir = 'train/'
+
+                    try:
+                        logging.debug("Moving %s from %s to %s", file, root,
+                                      os.path.join(self.source_dir, train_test_dir + list(category_rules.keys())[1]))
+
+                        os.rename(
+                            os.path.join(root, file),
+                            os.path.join(
+                                self.source_dir,
+                                ''.join([train_test_dir, list(category_rules.keys())[1], '/', file])))
+
+                    except OSError:
+                        logging.error("Could not move %s ", os.path.join(root, file))
+
+                else:
+                    logging.error("No files matching category regex")
 
         try:
-            logging.info("Removing resource: Directory [%s].", self.archive_dir)
+            logging.info("Removing resource: Directory [%s].", os.path.join(os.getcwd(), self.archive_dir))
             shutil.rmtree(self.archive_dir)
         except OSError:
-            logging.error("Could not remove resource: Directory [%s].", self.archive_dir)
-
-    def index_directory(self):
-        """Generate index for directory"""
-
-        file_list = []
-
-        for root, dirs, files in os.walk(self.source_dir):
-            for file in files:
-                file_list.append({'filename': root + '/' + file, 'label': file[4]})
-
-        return file_list
-
-    def split_sets(self, file_list, test_rate):
-        file_list_df = pd.DataFrame.from_dict(file_list)
-
-        file_list_df['label'].replace(['B', 'M'], [0, 1], inplace=True)
-        train_set, test_set = train_test_split(file_list_df, test_size=test_rate, random_state=0)
-
-        return train_set.to_dict('list'), test_set.to_dict('list')
+            logging.error("Could not remove resource: Directory [%s].", os.path.join(os.getcwd(), self.archive_dir))

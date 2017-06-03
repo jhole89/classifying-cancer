@@ -2,6 +2,7 @@ import os
 from glob import glob
 import numpy as np
 import tflearn
+import logging
 from tflearn.data_utils import to_categorical
 from tflearn.data_preprocessing import ImagePreprocessing
 from tflearn.data_augmentation import ImageAugmentation
@@ -25,7 +26,7 @@ def train():
     benign_files = sorted(glob(benign_file_path))
 
     n_files = len(malignant_files) + len(benign_files)
-    print(n_files)
+    logging.info("Number of image files to train on: %s", n_files)
 
     image_height = 460
     image_width = 700
