@@ -17,4 +17,4 @@ file_manager.remove_files_except('.png')
 file_manager.data_science_fs(category0='benign', category1='malignant')
 file_manager.organise_files(extract_dir, category_rules={'benign': 'SOB_B_.*.png', 'malignant': 'SOB_M_.*.png'})
 
-# train()
+train()
