@@ -1,66 +1,126 @@
-import numpy as np
-import tflearn
-from tflearn.data_preprocessing import ImagePreprocessing
-from tflearn.data_utils import image_preloader
-from tflearn.layers.core import input_data, fully_connected, dropout
-from tflearn.layers.conv import conv_2d, max_pool_2d
-from tflearn.layers.estimator import regression
+import tensorflow as tf
 
 
 def train():
 
-    training_path = 'images/train'
+    def weight_variable(shape):
+        return tf.Variable(tf.truncated_normal(shape, stddev=0.05))
 
-    image_height = 64
-    image_width = 64
+    def bias_variable(shape):
+        return tf.Variable(tf.constant(0.05, shape=shape))
+
+    def conv2d(layer, weights):
+        return tf.nn.conv2d(input=layer, filter=weights, strides=[1, 1, 1, 1], padding='SAME')
+
+    def max_pool_2x2(layer):
+        return tf.nn.max_pool(value=layer, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+
+    def new_conv_layer(layer, num_input_channels, filter_size, num_filters, use_pooling=True):
+
+        weights = weight_variable(shape=[filter_size, filter_size, num_input_channels, num_filters])
+
+        biases = bias_variable(shape=[num_filters])
+
+        layer = conv2d(layer, weights) + biases
+
+        if use_pooling:
+            layer = max_pool_2x2(layer)
+
+        layer = tf.nn.relu(layer)
+
+        return layer
+
+    def flatten_layer(layer):
+
+        layer_shape = layer.shape()
+
+        num_features = layer_shape[1:4].num_elements()
+
+        layer = tf.reshape(layer, [-1, num_features])
+
+        return layer, num_features
+
+    def new_fully_connected_layer(layer, num_inputs, num_outputs, use_relu=True):
+
+        weights = weight_variable(shape=[num_inputs, num_outputs])
+
+        biases = bias_variable(shape=[num_outputs])
+
+        layer = tf.matmul(layer, weights) + biases
+
+        if use_relu:
+            layer = tf.nn.relu(layer)
+
+        return layer
+
+    def print_progress():
+        return
+
+    sess = tf.Session()
+
+    img_size = 32
     colour_channels = 3
+    num_classes = 2
+    filter_size = 3
+    batch_size = 16
 
-    X, Y = image_preloader(
-        training_path,
-        image_shape=(image_height, image_width),
-        mode='folder',
-        categorical_labels=True,
-        normalize=True)
+    flat_img_size = img_size * img_size * colour_channels
 
-    X = np.reshape(X, (-1, image_height, image_width, colour_channels))
+    x = tf.placeholder(tf.float32, shape=[None, flat_img_size], name='x')
+    x_image = tf.reshape(x, [-1, img_size, img_size, colour_channels])
 
-    img_prep = ImagePreprocessing()
-    img_prep.add_featurewise_zero_center()
-    img_prep.add_featurewise_stdnorm()
+    y_true = tf.placeholder(tf.float32, shape=[None, num_classes], name='y_true')
 
-    network = input_data(shape=[None, image_height, image_width, colour_channels],
-                         data_preprocessing=img_prep,
-                         name='input')
+    layer_conv1 = new_conv_layer(
+        x_image,
+        num_input_channels=colour_channels,
+        filter_size=filter_size,
+        num_filters=32
+    )
 
-    network = conv_2d(network, 32, 3, activation='relu', name='conv_1')
-    network = max_pool_2d(network, 2)
-    network = conv_2d(network, 64, 3, activation='relu', name='conv_2')
-    network = conv_2d(network, 64, 3, activation='relu', name='conv_3')
-    network = max_pool_2d(network, 2)
-    network = fully_connected(network, 512, activation='relu')
-    network = dropout(network, 0.5)
-    network = fully_connected(network, 2, activation='softmax')
+    layer_conv2 = new_conv_layer(
+        layer_conv1,
+        num_input_channels=32,
+        filter_size=filter_size,
+        num_filters=64
+    )
 
-    network = regression(
-        network,
-        optimizer='adam',
-        loss='categorical_crossentropy',
-        learning_rate='0.001')
+    layer_conv3 = new_conv_layer(
+        layer_conv2,
+        num_input_channels=32,
+        filter_size=filter_size,
+        num_filters=64
+    )
 
-    model = tflearn.DNN(
-        network,
-        checkpoint_path='tmp/tflearn/cnn/checkpoints/model.tflearn',
-        max_checkpoints=3,
-        tensorboard_verbose=3,
-        tensorboard_dir='tmp/tflearn/cnn/logs/')
+    flat_layer, num_features = flatten_layer(layer_conv3)
 
-    model.fit(
-        X, Y,
-        validation_set=0.2,
-        n_epoch=1000,
-        shuffle=True,
-        batch_size=100,
-        run_id='model',
-        snapshot_step=500)
+    layer_fc1 = new_fully_connected_layer(
+        flat_layer,
+        num_features,
+        num_outputs=1024
+    )
 
-    model.save('tmp/tflearn/cnn/model/model_final.tflearn')
+    layer_fc2 = new_fully_connected_layer(
+        layer_fc1,
+        num_inputs=1024,
+        num_outputs=num_classes,
+        use_relu=False
+    )
+
+    y_pred = tf.nn.softmax(layer_fc2)
+
+    y_true_cls = tf.argmax(y_true, dimension=1)
+    y_pred_cls = tf.argmax(y_pred, dimension=1)
+
+    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=y_true, logits=layer_fc2)
+    cost = tf.reduce_mean(cross_entropy)
+
+    optimizer = tf.train.AdamOptimizer(learning_rate=1e-4).minimize(cost)
+    correct_prediction = tf.equal(y_pred_cls, y_true_cls)
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+    sess.run(tf.global_variables_initializer())
+
+    train_batch_size = batch_size
+
+    

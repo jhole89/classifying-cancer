@@ -62,7 +62,7 @@ class FileSystemManager:
     def data_science_fs(self, category0, category1):
         """Makes data science file system for ML modelling"""
 
-        for new_dir in ['train', 'test']:
+        for new_dir in ['train', 'predict']:
             for new_category in [category0, category1]:
 
                 logging.info(
@@ -73,18 +73,18 @@ class FileSystemManager:
     def organise_files(self, directory, category_rules):
         """Flattens directory tree to single level"""
 
-        test_ratio = 0.2
+        predict_ratio = 0.1
 
         for root, dirs, files in os.walk(directory):
             for file in files:
 
                 if re.compile(list(category_rules.values())[0]).match(file):
 
-                    if random() < test_ratio:
-                        train_test_dir = 'test/'
+                    if random() < predict_ratio:
+                        train_test_dir = 'predict/'
 
                     else:
-                        train_test_dir = 'train/'
+                        train_test_dir = 'training/'
 
                     try:
                         logging.debug(
@@ -102,11 +102,11 @@ class FileSystemManager:
 
                 elif re.compile(list(category_rules.values())[1]).match(file):
 
-                    if random() < test_ratio:
-                        train_test_dir = 'test/'
+                    if random() < predict_ratio:
+                        train_test_dir = 'predict/'
 
                     else:
-                        train_test_dir = 'train/'
+                        train_test_dir = 'training/'
 
                     try:
                         logging.debug("Moving %s from %s to %s", file, root,

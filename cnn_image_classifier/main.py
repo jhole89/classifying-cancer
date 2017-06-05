@@ -19,4 +19,4 @@ file_manager.data_science_fs(category0='benign', category1='malignant')
 file_manager.organise_files(extract_dir, category_rules={'benign': 'SOB_B_.*.png', 'malignant': 'SOB_M_.*.png'})
 
 # train()
-load_training('images')
+load_training('images', image_size=(32, 32))
