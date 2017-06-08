@@ -28,7 +28,7 @@ def load_training(image_dir, image_size):
 
         for file in file_list:
             image = cv2.imread(file)
-            image = cv2.resize(image, image_size, cv2.INTER_LINEAR)
+            image = cv2.resize(image, (image_size, image_size), cv2.INTER_LINEAR)
             images.append(image)
             label = np.zeros(len(training_dirs))
             label[index] = 1.0

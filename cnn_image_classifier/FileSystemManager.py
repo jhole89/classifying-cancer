@@ -84,7 +84,7 @@ class FileSystemManager:
                         train_test_dir = 'predict/'
 
                     else:
-                        train_test_dir = 'training/'
+                        train_test_dir = 'train/'
 
                     try:
                         logging.debug(
@@ -106,7 +106,7 @@ class FileSystemManager:
                         train_test_dir = 'predict/'
 
                     else:
-                        train_test_dir = 'training/'
+                        train_test_dir = 'train/'
 
                     try:
                         logging.debug("Moving %s from %s to %s", file, root,
