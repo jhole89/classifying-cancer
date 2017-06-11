@@ -14,14 +14,16 @@ def load_training(image_dir, image_size):
     ids = []
     cls = []
 
-    logging.info("Reading training images")
+    training_dir = os.path.join(image_dir, 'train')
 
-    training_dirs = os.listdir(os.path.join(image_dir, 'train'))
+    logging.info("Loading resource: Images [%s]", training_dir)
+
+    training_dirs = os.listdir(training_dir)
 
     for category in training_dirs:
         index = training_dirs.index(category)
 
-        logging.debug("Loading %s images (Index: %s)" % (category, index))
+        logging.debug("Loading resource: %s images [Index: %s]" % (category, index))
 
         path = os.path.join(image_dir, 'train', category, '*g')
         file_list = glob.glob(path)

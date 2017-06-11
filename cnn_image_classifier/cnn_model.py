@@ -1,3 +1,5 @@
+import os
+import logging
 import tensorflow as tf
 from cnn_image_classifier.image_loading import read_training_sets
 
@@ -59,52 +61,25 @@ def new_fully_connected_layer(layer, num_inputs, num_outputs, use_relu=True):
     return layer
 
 
-def print_progress(session, accuracy, epoch, train_feed_dict, test_feed_dict, val_loss):
+def print_progress(session, accuracy, epoch, test_feed_dict, val_loss):
 
-    acc = session.run(accuracy, feed_dict=train_feed_dict)
-    test_acc = session.run(accuracy, feed_dict=test_feed_dict)
+    acc = session.run(accuracy, feed_dict=test_feed_dict)
 
-    msg = "Epoch {0} --- Training Accuracy: {1:>6.1%}, Test Accuracy: {2:>6.1%}, Validation Loss: {3:.3f}"
-    print(msg.format(epoch+1, acc, test_acc, val_loss))
+    msg = "Epoch {0} --- Accuracy: {1:>6.1%}, Validation Loss: {2:.3f}"
+    logging.info(msg.format(epoch+1, acc, val_loss))
 
 
 def train(data_dir, model_dir):
 
-    def optimize(num_iterations, total_iterations):
-
-        for i in range(total_iterations, total_iterations + num_iterations):
-
-            x_batch, y_true_batch, _, cls_batch = data.train.next_batch(train_batch_size)
-            x_test_batch, y_test_batch, _, cls_test_batch = data.test.next_batch(train_batch_size)
-
-            x_batch = x_batch.reshape(train_batch_size, flat_img_size)
-            x_test_batch = x_test_batch.reshape(train_batch_size, flat_img_size)
-
-            feed_dict_train = {x: x_batch,
-                               y_true: y_true_batch}
-
-            feed_dict_test = {x: x_test_batch,
-                              y_true: y_test_batch}
-
-            epoch = int(i / int(data.train.num_examples / batch_size))
-
-            _, summary = sess.run([training_op, summary_op], feed_dict=feed_dict_train)
-            writer.add_summary(summary, epoch + i)
-            writer.flush()
-
-            if i % int(data.train.num_examples / batch_size) == 0:
-                val_loss = sess.run(cost, feed_dict=feed_dict_test)
-                print_progress(sess, accuracy, epoch, feed_dict_train, feed_dict_test, val_loss)
-
-        total_iterations += num_iterations
-
-    sess = tf.Session()
-
     img_size = 32
+    neurons = 2 * img_size
     colour_channels = 3
     num_classes = 2
     filter_size = 3
-    batch_size = 16
+    batch_size = 128
+    training_epochs = 500
+    log_dir = model_dir + '/tensorflow/cnn/logs/cnn_with_summaries'
+    checkpoint_dir = model_dir + '/tensorflow/cnn/model'
 
     data = read_training_sets(data_dir, img_size, validation_size=.2)
 
@@ -112,7 +87,7 @@ def train(data_dir, model_dir):
 
     with tf.name_scope('input'):
 
-        x = tf.placeholder(tf.float32, shape=[None, flat_img_size], name='x')
+        x = tf.placeholder(tf.float32, shape=[None, flat_img_size], name='x-input')
         y_true = tf.placeholder(tf.float32, shape=[None, num_classes], name='y_true')
 
     with tf.name_scope('reshaping'):
@@ -124,23 +99,23 @@ def train(data_dir, model_dir):
             x_image,
             num_input_channels=colour_channels,
             filter_size=filter_size,
-            num_filters=32
+            num_filters=img_size
         )
 
     with tf.name_scope('Conv2'):
         layer_conv2 = new_conv_layer(
             layer_conv1,
-            num_input_channels=32,
+            num_input_channels=img_size,
             filter_size=filter_size,
-            num_filters=64
+            num_filters=neurons
         )
 
     with tf.name_scope('Conv3'):
         layer_conv3 = new_conv_layer(
             layer_conv2,
-            num_input_channels=64,
+            num_input_channels=neurons,
             filter_size=filter_size,
-            num_filters=64
+            num_filters=neurons
         )
 
     with tf.name_scope('Fully_Connected1'):
@@ -181,12 +156,42 @@ def train(data_dir, model_dir):
 
     tf.summary.scalar('cost', cost)
     tf.summary.scalar('accuracy', accuracy)
-
     summary_op = tf.summary.merge_all()
-    writer = tf.summary.FileWriter(model_dir + '/tensorflow/cnn/logs/cnn_with_summaries', graph=tf.get_default_graph())
 
-    sess.run(tf.global_variables_initializer())
+    sess = tf.InteractiveSession()
+    saver = tf.train.Saver()
 
-    train_batch_size = batch_size
+    if os.path.exists(checkpoint_dir):
+        logging.info("Loading resource: CNN Model [%s]", os.path.join(os.getcwd(), checkpoint_dir + '/model.ckpt'))
+        saver.restore(sess, checkpoint_dir + '/model.ckpt')
+    else:
+        os.makedirs(checkpoint_dir)
+        tf.global_variables_initializer().run()
 
-    optimize(num_iterations=10000, total_iterations=0)
+    writer = tf.summary.FileWriter(log_dir, graph=tf.get_default_graph())
+
+    for epoch in range(training_epochs):
+
+        batch_count = int(data.train.num_examples / batch_size)
+
+        for i in range(batch_count):
+
+            x_batch, y_true_batch, _, cls_batch = data.train.next_batch(batch_size)
+            x_test_batch, y_test_batch, _, cls_test_batch = data.test.next_batch(batch_size)
+
+            x_batch = x_batch.reshape(batch_size, flat_img_size)
+            x_test_batch = x_test_batch.reshape(batch_size, flat_img_size)
+
+            feed_dict_test = {x: x_test_batch,
+                              y_true: y_test_batch}
+
+            _, summary = sess.run([training_op, summary_op],
+                                  feed_dict={x: x_batch, y_true: y_true_batch})
+
+            writer.add_summary(summary, epoch * batch_count + i)
+
+        if epoch % 50 == 0:
+            val_loss = sess.run(cost, feed_dict=feed_dict_test)
+            print_progress(sess, accuracy, epoch, feed_dict_test, val_loss)
+            save_path = saver.save(sess, checkpoint_dir + '/model.ckpt')
+            logging.info("Creating resource: CNN Model [%s]", os.path.join(os.getcwd(), save_path))
