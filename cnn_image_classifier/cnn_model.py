@@ -47,7 +47,7 @@ def flatten_layer(layer):
     return layer, num_features
 
 
-def new_fully_connected_layer(layer, num_inputs, num_outputs, use_relu=True):
+def new_fully_connected_layer(layer, num_inputs, num_outputs, use_relu=True, layer_id=1, summaries=False):
 
     weights = weight_variable(shape=[num_inputs, num_outputs])
 
@@ -58,41 +58,48 @@ def new_fully_connected_layer(layer, num_inputs, num_outputs, use_relu=True):
     if use_relu:
         layer = tf.nn.relu(layer)
 
+    if summaries:
+        tf.summary.histogram("Weight_fc" + str(layer_id), weights)
+        tf.summary.histogram("bias_fc" + str(layer_id), biases)
+
     return layer
 
 
-def print_progress(session, accuracy, epoch, test_feed_dict, val_loss):
+def log_progress(session, saver, cost, accuracy, epoch, test_feed_dict, checkpoint_path):
 
+    val_loss = session.run(cost, feed_dict=test_feed_dict)
     acc = session.run(accuracy, feed_dict=test_feed_dict)
 
     msg = "Epoch {0} --- Accuracy: {1:>6.1%}, Validation Loss: {2:.3f}"
     logging.info(msg.format(epoch+1, acc, val_loss))
 
+    save_path = saver.save(session, checkpoint_path)
+    logging.debug("Creating resource: CNN Model [%s]", save_path)
+
 
 def train(data_dir, model_dir):
 
-    img_size = 32
+    img_size = 64
     neurons = 2 * img_size
     colour_channels = 3
     num_classes = 2
     filter_size = 3
     batch_size = 128
     training_epochs = 500
-    log_dir = model_dir + '/tensorflow/cnn/logs/cnn_with_summaries'
+    log_dir = os.path.join(os.getcwd(), model_dir, 'tensorflow/cnn/logs/cnn_with_summaries')
     checkpoint_dir = model_dir + '/tensorflow/cnn/model'
-
-    data = read_training_sets(data_dir, img_size, validation_size=.2)
 
     flat_img_size = img_size * img_size * colour_channels
 
-    with tf.name_scope('input'):
+    data = read_training_sets(data_dir, img_size, validation_size=.2)
 
+    with tf.name_scope('input'):
         x = tf.placeholder(tf.float32, shape=[None, flat_img_size], name='x-input')
         y_true = tf.placeholder(tf.float32, shape=[None, num_classes], name='y_true')
 
     with tf.name_scope('reshaping'):
         x_image = tf.reshape(x, [-1, img_size, img_size, colour_channels])
-        image_summary = tf.summary.image('example_images', x_image)
+        tf.summary.image('example_images', x_image)
 
     with tf.name_scope('Conv1'):
         layer_conv1 = new_conv_layer(
@@ -134,35 +141,37 @@ def train(data_dir, model_dir):
             layer_fc1,
             num_inputs=1024,
             num_outputs=num_classes,
-            use_relu=False
+            use_relu=False,
+            layer_id=2,
+            summaries=True
         )
 
     with tf.name_scope('softmax'):
         y_pred = tf.nn.softmax(layer_fc2)
 
-    with tf.name_scope('cross_entropy'):
+    with tf.name_scope('cost'):
         y_true_cls = tf.argmax(y_true, dimension=1)
         y_pred_cls = tf.argmax(y_pred, dimension=1)
 
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=y_true, logits=layer_fc2)
         cost = tf.reduce_mean(cross_entropy)
+        tf.summary.scalar('cost', cost)
 
     with tf.name_scope('train'):
         training_op = tf.train.AdamOptimizer(learning_rate=1e-4).minimize(cost)
 
-    with tf.name_scope('Accuracy'):
+    with tf.name_scope('accuracy'):
         correct_prediction = tf.equal(y_pred_cls, y_true_cls)
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+        tf.summary.scalar('accuracy', accuracy)
 
-    tf.summary.scalar('cost', cost)
-    tf.summary.scalar('accuracy', accuracy)
     summary_op = tf.summary.merge_all()
 
     sess = tf.InteractiveSession()
     saver = tf.train.Saver()
 
-    if os.path.exists(checkpoint_dir):
-        logging.info("Loading resource: CNN Model [%s]", os.path.join(os.getcwd(), checkpoint_dir + '/model.ckpt'))
+    if os.path.exists(checkpoint_dir + '/checkpoint'):
+        logging.debug("Loading resource: CNN Model [%s]", os.path.join(os.getcwd(), checkpoint_dir + '/model.ckpt'))
         saver.restore(sess, checkpoint_dir + '/model.ckpt')
     else:
         os.makedirs(checkpoint_dir)
@@ -182,16 +191,12 @@ def train(data_dir, model_dir):
             x_batch = x_batch.reshape(batch_size, flat_img_size)
             x_test_batch = x_test_batch.reshape(batch_size, flat_img_size)
 
-            feed_dict_test = {x: x_test_batch,
-                              y_true: y_test_batch}
-
             _, summary = sess.run([training_op, summary_op],
                                   feed_dict={x: x_batch, y_true: y_true_batch})
 
             writer.add_summary(summary, epoch * batch_count + i)
 
-        if epoch % 50 == 0:
-            val_loss = sess.run(cost, feed_dict=feed_dict_test)
-            print_progress(sess, accuracy, epoch, feed_dict_test, val_loss)
-            save_path = saver.save(sess, checkpoint_dir + '/model.ckpt')
-            logging.info("Creating resource: CNN Model [%s]", os.path.join(os.getcwd(), save_path))
+        if epoch % 25 == 0:
+            log_progress(sess, saver, cost, accuracy, epoch,
+                         test_feed_dict={x: x_test_batch, y_true: y_test_batch},
+                         checkpoint_path=os.path.join(os.getcwd(), checkpoint_dir, 'model.ckpt'))

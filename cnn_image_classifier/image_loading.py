@@ -14,7 +14,7 @@ def load_training(image_dir, image_size):
     ids = []
     cls = []
 
-    training_dir = os.path.join(image_dir, 'train')
+    training_dir = os.path.join(os.getcwd(), image_dir, 'train')
 
     logging.info("Loading resource: Images [%s]", training_dir)
 
