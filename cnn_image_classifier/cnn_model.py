@@ -4,6 +4,10 @@ import tensorflow as tf
 from cnn_image_classifier.image_loading import read_training_sets
 
 
+def flat_img_shape(img_size, channels):
+    return img_size * img_size * channels
+
+
 def weight_variable(shape):
     return tf.Variable(tf.truncated_normal(shape, stddev=0.05))
 
@@ -77,25 +81,16 @@ def log_progress(session, saver, cost, accuracy, epoch, test_feed_dict, checkpoi
     logging.debug("Creating resource: CNN Model [%s]", save_path)
 
 
-def train(data_dir, model_dir):
-
-    img_size = 64
-    neurons = 2 * img_size
-    colour_channels = 3
-    num_classes = 2
-    filter_size = 3
-    batch_size = 128
-    training_epochs = 500
-    log_dir = os.path.join(os.getcwd(), model_dir, 'tensorflow/cnn/logs/cnn_with_summaries')
-    checkpoint_dir = model_dir + '/tensorflow/cnn/model'
-
-    flat_img_size = img_size * img_size * colour_channels
-
-    data = read_training_sets(data_dir, img_size, validation_size=.2)
+def variables(flat_img_size, num_classes):
 
     with tf.name_scope('input'):
         x = tf.placeholder(tf.float32, shape=[None, flat_img_size], name='x-input')
         y_true = tf.placeholder(tf.float32, shape=[None, num_classes], name='y_true')
+
+    return x, y_true
+
+
+def model(x, img_size, colour_channels, filter_size, neurons, num_classes):
 
     with tf.name_scope('reshaping'):
         x_image = tf.reshape(x, [-1, img_size, img_size, colour_channels])
@@ -146,38 +141,83 @@ def train(data_dir, model_dir):
             summaries=True
         )
 
+    return layer_fc2
+
+
+def softmax(logits):
+
     with tf.name_scope('softmax'):
-        y_pred = tf.nn.softmax(layer_fc2)
+        y_pred = tf.nn.softmax(logits)
+
+    return y_pred
+
+
+def calulate_cost(logits, y_true):
 
     with tf.name_scope('cost'):
-        y_true_cls = tf.argmax(y_true, dimension=1)
-        y_pred_cls = tf.argmax(y_pred, dimension=1)
-
-        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=y_true, logits=layer_fc2)
+        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=y_true, logits=logits)
         cost = tf.reduce_mean(cross_entropy)
         tf.summary.scalar('cost', cost)
 
-    with tf.name_scope('train'):
-        training_op = tf.train.AdamOptimizer(learning_rate=1e-4).minimize(cost)
+    return cost
+
+
+def calculate_accuracy(logits, y_true):
 
     with tf.name_scope('accuracy'):
+        y_true_cls = tf.argmax(y_true, dimension=1)
+        y_pred_cls = tf.argmax(softmax(logits), dimension=1)
         correct_prediction = tf.equal(y_pred_cls, y_true_cls)
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
         tf.summary.scalar('accuracy', accuracy)
 
-    summary_op = tf.summary.merge_all()
+    return accuracy
 
-    sess = tf.InteractiveSession()
-    saver = tf.train.Saver()
 
-    if os.path.exists(checkpoint_dir + '/checkpoint'):
-        logging.debug("Loading resource: CNN Model [%s]", os.path.join(os.getcwd(), checkpoint_dir + '/model.ckpt'))
-        saver.restore(sess, checkpoint_dir + '/model.ckpt')
-    else:
+def restore_or_initialize(session, saver, checkpoint_dir):
+
+    ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
+
+    if ckpt:
         os.makedirs(checkpoint_dir)
         tf.global_variables_initializer().run()
 
+    else:
+        logging.debug("Loading resource: CNN Model [%s]", os.path.join(checkpoint_dir, 'model.ckpt'))
+        saver.restore(session, ckpt.model_checkpoint_path)
+
+
+def train(data_dir, model_dir):
+
+    img_size = 64
+    colour_channels = 3
+    num_classes = 2
+    batch_size = 128
+    training_epochs = 100
+    log_dir = os.path.join(os.path.abspath(model_dir), 'tensorflow/cnn/logs/cnn_with_summaries')
+    checkpoint_dir = os.path.join(os.path.abspath(model_dir), 'tensorflow/cnn/model')
+
+    flat_img_size = flat_img_shape(img_size, colour_channels)
+
+    data = read_training_sets(data_dir, img_size, validation_size=.2)
+
+    x, y_true = variables(flat_img_size, num_classes)
+
+    logits = model(x, img_size, colour_channels, filter_size=3, neurons=2*img_size, num_classes=num_classes)
+
+    cost = calulate_cost(logits, y_true)
+
+    with tf.name_scope('train'):
+        training_op = tf.train.AdamOptimizer(learning_rate=1e-4).minimize(cost)
+
+    accuracy = calculate_accuracy(logits, y_true)
+
+    summary_op = tf.summary.merge_all()
+    sess = tf.InteractiveSession()
+    saver = tf.train.Saver()
     writer = tf.summary.FileWriter(log_dir, graph=tf.get_default_graph())
+
+    restore_or_initialize(sess, saver, checkpoint_dir)
 
     for epoch in range(training_epochs):
 
@@ -196,7 +236,34 @@ def train(data_dir, model_dir):
 
             writer.add_summary(summary, epoch * batch_count + i)
 
-        if epoch % 25 == 0:
+        if epoch % 5 == 0:
             log_progress(sess, saver, cost, accuracy, epoch,
                          test_feed_dict={x: x_test_batch, y_true: y_test_batch},
                          checkpoint_path=os.path.join(os.getcwd(), checkpoint_dir, 'model.ckpt'))
+
+
+def predict(img_dir, model_dir):
+
+    checkpoint_dir = os.path.join(os.path.abspath(model_dir), 'tensorflow/cnn/model')
+    img_size = 64
+    colour_channels = 3
+    num_classes = 2
+
+    flat_img_size = flat_img_shape(img_size, colour_channels)
+
+    data = read_training_sets(img_dir, img_size)
+
+    x, y_true = variables(flat_img_size, num_classes)
+
+    logits = model(x, img_size, colour_channels, filter_size=3, neurons=2*img_size, num_classes=num_classes)
+
+    predict_op = softmax(logits)
+
+    with tf.Session() as sess:
+
+        saver = tf.train.Saver()
+        restore_or_initialize(sess, saver, checkpoint_dir)
+
+        x_predict_batch, y_predict_batch, _, cls_predict_batch = data.train.next_batch(batch_size=1)
+
+        predictions = sess.run([predict_op], feed_dict={x: x_predict_batch})
