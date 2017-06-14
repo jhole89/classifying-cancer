@@ -75,7 +75,7 @@ def log_progress(session, saver, cost, accuracy, epoch, test_feed_dict, checkpoi
     acc = session.run(accuracy, feed_dict=test_feed_dict)
 
     msg = "Epoch {0} --- Accuracy: {1:>6.1%}, Validation Loss: {2:.3f}"
-    logging.info(msg.format(epoch+1, acc, val_loss))
+    logging.info(msg.format(epoch, acc, val_loss))
 
     save_path = saver.save(session, checkpoint_path)
     logging.debug("Creating resource: CNN Model [%s]", save_path)
@@ -179,12 +179,16 @@ def restore_or_initialize(session, saver, checkpoint_dir):
     ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
 
     if ckpt:
-        os.makedirs(checkpoint_dir)
-        tf.global_variables_initializer().run()
-
-    else:
         logging.debug("Loading resource: CNN Model [%s]", os.path.join(checkpoint_dir, 'model.ckpt'))
         saver.restore(session, ckpt.model_checkpoint_path)
+
+    else:
+        logging.warning(
+            "Resource not found: CNN Model [%s]. Model will now be trained from scratch.",
+            os.path.join(checkpoint_dir, 'model.ckpt'))
+
+        os.makedirs(checkpoint_dir)
+        tf.global_variables_initializer().run()
 
 
 def train(data_dir, model_dir):
@@ -202,9 +206,7 @@ def train(data_dir, model_dir):
     data = read_training_sets(data_dir, img_size, validation_size=.2)
 
     x, y_true = variables(flat_img_size, num_classes)
-
     logits = model(x, img_size, colour_channels, filter_size=3, neurons=2*img_size, num_classes=num_classes)
-
     cost = calulate_cost(logits, y_true)
 
     with tf.name_scope('train'):
@@ -239,7 +241,7 @@ def train(data_dir, model_dir):
         if epoch % 5 == 0:
             log_progress(sess, saver, cost, accuracy, epoch,
                          test_feed_dict={x: x_test_batch, y_true: y_test_batch},
-                         checkpoint_path=os.path.join(os.getcwd(), checkpoint_dir, 'model.ckpt'))
+                         checkpoint_path=os.path.join(checkpoint_dir, 'model.ckpt'))
 
 
 def predict(img_dir, model_dir):
