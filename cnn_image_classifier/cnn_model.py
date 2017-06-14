@@ -24,6 +24,10 @@ def max_pool_2x2(layer):
     return tf.nn.max_pool(value=layer, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
 
+def dropout(layer, keep_prob):
+    return tf.nn.dropout(layer, keep_prob)
+
+
 def new_conv_layer(layer, num_input_channels, filter_size, num_filters, use_pooling=True):
 
     weights = weight_variable(shape=[filter_size, filter_size, num_input_channels, num_filters])
@@ -86,11 +90,12 @@ def variables(flat_img_size, num_classes):
     with tf.name_scope('input'):
         x = tf.placeholder(tf.float32, shape=[None, flat_img_size], name='x-input')
         y_true = tf.placeholder(tf.float32, shape=[None, num_classes], name='y_true')
+        keep_prob = tf.placeholder(tf.float32)
 
-    return x, y_true
+    return x, y_true, keep_prob
 
 
-def model(x, img_size, colour_channels, filter_size, neurons, num_classes):
+def model(x, keep_prob, img_size, colour_channels, filter_size, neurons, num_classes):
 
     with tf.name_scope('reshaping'):
         x_image = tf.reshape(x, [-1, img_size, img_size, colour_channels])
@@ -130,10 +135,14 @@ def model(x, img_size, colour_channels, filter_size, neurons, num_classes):
             num_outputs=1024
         )
 
+    with tf.name_scope('Dropout'):
+
+        dropout_layer = dropout(layer_fc1, keep_prob)
+
     with tf.name_scope('Fully_Connected2'):
 
         layer_fc2 = new_fully_connected_layer(
-            layer_fc1,
+            dropout_layer,
             num_inputs=1024,
             num_outputs=num_classes,
             use_relu=False,
@@ -205,8 +214,8 @@ def train(data_dir, model_dir):
 
     data = read_training_sets(data_dir, img_size, validation_size=.2)
 
-    x, y_true = variables(flat_img_size, num_classes)
-    logits = model(x, img_size, colour_channels, filter_size=3, neurons=2*img_size, num_classes=num_classes)
+    x, y_true, keep_prob = variables(flat_img_size, num_classes)
+    logits = model(x, keep_prob, img_size, colour_channels, filter_size=3, neurons=2*img_size, num_classes=num_classes)
     cost = calulate_cost(logits, y_true)
 
     with tf.name_scope('train'):
@@ -234,13 +243,13 @@ def train(data_dir, model_dir):
             x_test_batch = x_test_batch.reshape(batch_size, flat_img_size)
 
             _, summary = sess.run([training_op, summary_op],
-                                  feed_dict={x: x_batch, y_true: y_true_batch})
+                                  feed_dict={x: x_batch, y_true: y_true_batch, keep_prob: 0.5})
 
             writer.add_summary(summary, epoch * batch_count + i)
 
         if epoch % 5 == 0:
             log_progress(sess, saver, cost, accuracy, epoch,
-                         test_feed_dict={x: x_test_batch, y_true: y_test_batch},
+                         test_feed_dict={x: x_test_batch, y_true: y_test_batch, keep_prob: 1.0},
                          checkpoint_path=os.path.join(checkpoint_dir, 'model.ckpt'))
 
 
@@ -255,7 +264,7 @@ def predict(img_dir, model_dir):
 
     data = read_training_sets(img_dir, img_size)
 
-    x, y_true = variables(flat_img_size, num_classes)
+    x, y_true, keep_prob = variables(flat_img_size, num_classes)
 
     logits = model(x, img_size, colour_channels, filter_size=3, neurons=2*img_size, num_classes=num_classes)
 
