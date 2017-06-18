@@ -47,7 +47,9 @@ elif int(mode_input) == 2:
     if int(image_input) == 1:
         pass
         # randomly get an image
-    elif int(image_directory) == 2:
+    elif int(image_input) == 2:
         pass
 
-    predict(image_directory, model_directory)
+    prediction, ground_truth = predict(image_directory, model_directory)
+
+    print("Prediction: This is a %s cell.\nValidation: It was a %s cell" % (prediction, ground_truth))

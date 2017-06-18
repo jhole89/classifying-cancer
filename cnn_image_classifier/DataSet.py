@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class DataSet:
 
     def __init__(self, images, labels, ids, cls):
@@ -27,7 +28,7 @@ class DataSet:
         return self._ids
 
     @property
-    def clc(self):
+    def cls(self):
         return self._cls
     
     @property

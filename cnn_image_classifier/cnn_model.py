@@ -1,7 +1,7 @@
 import os
 import logging
 import tensorflow as tf
-from cnn_image_classifier.image_loading import read_training_sets
+from cnn_image_classifier.image_loading import read_img_sets
 
 
 def flat_img_shape(img_size, channels):
@@ -132,7 +132,9 @@ def model(x, keep_prob, img_size, colour_channels, filter_size, neurons, num_cla
         layer_fc1 = new_fully_connected_layer(
             flat_layer,
             num_features,
-            num_outputs=1024
+            num_outputs=1024,
+            layer_id=1,
+            summaries=True
         )
 
     with tf.name_scope('Dropout'):
@@ -200,19 +202,19 @@ def restore_or_initialize(session, saver, checkpoint_dir):
         tf.global_variables_initializer().run()
 
 
-def train(data_dir, model_dir):
+def train(img_dir, model_dir):
 
     img_size = 64
     colour_channels = 3
     num_classes = 2
     batch_size = 128
-    training_epochs = 100
+    training_epochs = 50
     log_dir = os.path.join(os.path.abspath(model_dir), 'tensorflow/cnn/logs/cnn_with_summaries')
     checkpoint_dir = os.path.join(os.path.abspath(model_dir), 'tensorflow/cnn/model')
 
     flat_img_size = flat_img_shape(img_size, colour_channels)
 
-    data = read_training_sets(data_dir, img_size, validation_size=.2)
+    data = read_img_sets(img_dir + '/train', img_size, validation_size=.2)
 
     x, y_true, keep_prob = variables(flat_img_size, num_classes)
     logits = model(x, keep_prob, img_size, colour_channels, filter_size=3, neurons=2*img_size, num_classes=num_classes)
@@ -237,9 +239,9 @@ def train(data_dir, model_dir):
         for i in range(batch_count):
 
             x_batch, y_true_batch, _, cls_batch = data.train.next_batch(batch_size)
-            x_test_batch, y_test_batch, _, cls_test_batch = data.test.next_batch(batch_size)
-
             x_batch = x_batch.reshape(batch_size, flat_img_size)
+
+            x_test_batch, y_test_batch, _, cls_test_batch = data.test.next_batch(batch_size)
             x_test_batch = x_test_batch.reshape(batch_size, flat_img_size)
 
             _, summary = sess.run([training_op, summary_op],
@@ -259,14 +261,15 @@ def predict(img_dir, model_dir):
     img_size = 64
     colour_channels = 3
     num_classes = 2
+    batch_size = 1
 
     flat_img_size = flat_img_shape(img_size, colour_channels)
 
-    data = read_training_sets(img_dir, img_size)
+    data, category_ref = read_img_sets(img_dir + '/predict', img_size)
 
     x, y_true, keep_prob = variables(flat_img_size, num_classes)
 
-    logits = model(x, img_size, colour_channels, filter_size=3, neurons=2*img_size, num_classes=num_classes)
+    logits = model(x, keep_prob, img_size, colour_channels, filter_size=3, neurons=2*img_size, num_classes=num_classes)
 
     predict_op = softmax(logits)
 
@@ -276,5 +279,8 @@ def predict(img_dir, model_dir):
         restore_or_initialize(sess, saver, checkpoint_dir)
 
         x_predict_batch, y_predict_batch, _, cls_predict_batch = data.train.next_batch(batch_size=1)
+        x_predict_batch = x_predict_batch.reshape(batch_size, flat_img_size)
 
-        predictions = sess.run([predict_op], feed_dict={x: x_predict_batch})
+        prediction = sess.run([tf.argmax(predict_op, dimension=1)], feed_dict={x: x_predict_batch, keep_prob: 1.0})
+
+        return category_ref[prediction[0][0]], cls_predict_batch[0]

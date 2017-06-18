@@ -7,25 +7,27 @@ from sklearn.utils import shuffle
 from cnn_image_classifier.DataSet import DataSet
 
 
-def load_training(image_dir, image_size):
+def load_data(image_dir, image_size):
 
     images = []
     labels = []
     ids = []
     cls = []
 
-    training_dir = os.path.join(os.getcwd(), image_dir, 'train')
+    image_dir = os.path.abspath(image_dir)
+    binary_cls_map = {}
 
-    logging.info("Loading resource: Images [%s]", training_dir)
+    logging.info("Loading resource: Images [%s]", image_dir)
 
-    training_dirs = os.listdir(training_dir)
+    training_dirs = os.listdir(image_dir)
 
     for category in training_dirs:
         index = training_dirs.index(category)
+        binary_cls_map[index] = category
 
         logging.debug("Loading resource: %s images [Index: %s]" % (category, index))
 
-        path = os.path.join(image_dir, 'train', category, '*g')
+        path = os.path.join(image_dir, category, '*g')
         file_list = glob.glob(path)
 
         for file in file_list:
@@ -44,16 +46,16 @@ def load_training(image_dir, image_size):
     ids = np.array(ids)
     cls = np.array(cls)
 
-    return images, labels, ids, cls
+    return images, labels, ids, cls, binary_cls_map
 
 
-def read_training_sets(image_dir, image_size, validation_size=0):
+def read_img_sets(image_dir, image_size, validation_size=0):
     class DataSets:
         pass
 
     data_sets = DataSets()
 
-    images, labels, ids, cls = load_training(image_dir, image_size)
+    images, labels, ids, cls, cls_map = load_data(image_dir, image_size)
     images, labels, ids, cls = shuffle(images, labels, ids, cls)
 
     if isinstance(validation_size, float):
@@ -72,4 +74,4 @@ def read_training_sets(image_dir, image_size, validation_size=0):
     data_sets.train = DataSet(train_images, train_labels, train_ids, train_cls)
     data_sets.test = DataSet(test_images, test_labels, test_ids, test_cls)
 
-    return data_sets
+    return data_sets, cls_map
