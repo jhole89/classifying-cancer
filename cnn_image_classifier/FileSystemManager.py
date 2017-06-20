@@ -20,11 +20,11 @@ class FileSystemManager:
             if directory:
                 if os.path.exists(directory):
                     try:
-                        logging.info("Removing resource: Directory [%s].", os.path.join(os.getcwd(), directory))
+                        logging.info("Removing resource: Directory [%s].", os.path.abspath(directory))
                         shutil.rmtree(directory)
                     except OSError:
                         logging.error(
-                            "Could not remove resource: Directory [%s].", os.path.join(os.getcwd(), directory))
+                            "Could not remove resource: Directory [%s].", os.path.abspath(directory))
 
     def extract_archive(self, archive):
         """Extract compressed archives tar.gz"""
@@ -32,7 +32,7 @@ class FileSystemManager:
         self.archive_dir = archive.split('.')[0]
 
         if not os.path.exists(self.archive_dir):
-            logging.info("Extracting archive %s to %s", archive, os.path.join(os.getcwd(), self.archive_dir))
+            logging.info("Extracting archive %s to %s", archive, os.path.abspath(self.archive_dir))
 
             if archive.lower().endswith('.tar.gz'):
                 tar = tarfile.open(archive, "r:gz")
@@ -65,10 +65,11 @@ class FileSystemManager:
         for new_dir in ['train', 'predict']:
             for new_category in [category0, category1]:
 
+                abspath_dir = os.path.abspath(os.path.join(self.source_dir, new_dir, new_category))
+
                 logging.info(
-                    "Creating resource: Directory [%s]",
-                    os.path.join(os.getcwd(), ''.join([self.source_dir, '/', new_dir, '/', new_category])))
-                os.makedirs(os.path.join(self.source_dir, new_dir + '/' + new_category))
+                    "Creating resource: Directory [%s]", abspath_dir)
+                os.makedirs(abspath_dir)
 
     def organise_files(self, directory, category_rules):
         """Flattens directory tree to single level"""
@@ -89,13 +90,11 @@ class FileSystemManager:
                     try:
                         logging.debug(
                             "Moving %s from %s to %s", file, root,
-                            os.path.join(self.source_dir, train_test_dir + list(category_rules.keys())[0]))
+                            os.path.join(self.source_dir, train_test_dir, list(category_rules.keys())[0]))
 
                         os.rename(
                             os.path.join(root, file),
-                            os.path.join(
-                                self.source_dir,
-                                ''.join([train_test_dir, list(category_rules.keys())[0], '/', file])))
+                            os.path.join(self.source_dir, train_test_dir, list(category_rules.keys())[0], file))
 
                     except OSError:
                         logging.error("Could not move %s ", os.path.join(root, file))
@@ -110,13 +109,11 @@ class FileSystemManager:
 
                     try:
                         logging.debug("Moving %s from %s to %s", file, root,
-                                      os.path.join(self.source_dir, train_test_dir + list(category_rules.keys())[1]))
+                                      os.path.join(self.source_dir, train_test_dir, list(category_rules.keys())[1]))
 
                         os.rename(
                             os.path.join(root, file),
-                            os.path.join(
-                                self.source_dir,
-                                ''.join([train_test_dir, list(category_rules.keys())[1], '/', file])))
+                            os.path.join(self.source_dir, train_test_dir, list(category_rules.keys())[1], file))
 
                     except OSError:
                         logging.error("Could not move %s ", os.path.join(root, file))
@@ -125,7 +122,7 @@ class FileSystemManager:
                     logging.error("No files matching category regex")
 
         try:
-            logging.info("Removing resource: Directory [%s].", os.path.join(os.getcwd(), self.archive_dir))
+            logging.info("Removing resource: Directory [%s].", os.path.abspath(self.archive_dir))
             shutil.rmtree(self.archive_dir)
         except OSError:
-            logging.error("Could not remove resource: Directory [%s].", os.path.join(os.getcwd(), self.archive_dir))
+            logging.error("Could not remove resource: Directory [%s].", os.path.abspath(self.archive_dir))
