@@ -6,9 +6,10 @@ from progressbar import ProgressBar, Percentage, Bar
 
 class DownloadManager:
 
-    def __init__(self, source_data, download_url):
-        self.source_data = source_data
+    def __init__(self, download_url):
         self.download_url = download_url
+        self.source_data = download_url.split('/')[-1]
+        self.source_data = os.path.abspath(self.source_data)
 
     def download(self):
         """Download data if not present on local FileSystem"""
@@ -16,12 +17,10 @@ class DownloadManager:
         def progress(count, blockSize, totalSize):
             pbar.update(int(count * blockSize * 100 / totalSize))
 
-        full_url = self.download_url + '/' + self.source_data
-
         if not os.path.exists(self.source_data):
             logging.info(
-                "%s not found on local filesystem. File will be downloaded from %s.", self.source_data,
-                full_url)
+                "%s not found on local filesystem. File will be downloaded from %s.",
+                self.source_data, self.download_url)
 
             pbar = ProgressBar(widgets=[Percentage(), Bar()])
-            urlretrieve(full_url, self.source_data, reporthook=progress)
+            urlretrieve(self.download_url, self.source_data, reporthook=progress)

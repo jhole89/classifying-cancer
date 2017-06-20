@@ -173,6 +173,14 @@ def calulate_cost(logits, y_true):
     return cost
 
 
+def optimizer(cost):
+
+    with tf.name_scope('train'):
+        training_op = tf.train.AdamOptimizer(learning_rate=1e-4).minimize(cost)
+
+    return training_op
+
+
 def calculate_accuracy(logits, y_true):
 
     with tf.name_scope('accuracy'):
@@ -202,75 +210,66 @@ def restore_or_initialize(session, saver, checkpoint_dir):
         tf.global_variables_initializer().run()
 
 
-def train(img_dir, model_dir):
+def train(img_dir, model_dir, img_size=64, colour_channels=3, batch_size=128, training_epochs=50):
 
-    img_size = 64
-    colour_channels = 3
-    num_classes = 2
-    batch_size = 128
-    training_epochs = 50
     log_dir = os.path.join(os.path.abspath(model_dir), 'tensorflow/cnn/logs/cnn_with_summaries')
     checkpoint_dir = os.path.join(os.path.abspath(model_dir), 'tensorflow/cnn/model')
 
+    data, category_ref = read_img_sets(img_dir + '/train', img_size, validation_size=.2)
+
     flat_img_size = flat_img_shape(img_size, colour_channels)
 
-    data = read_img_sets(img_dir + '/train', img_size, validation_size=.2)
+    num_classes = len(category_ref)
 
     x, y_true, keep_prob = variables(flat_img_size, num_classes)
     logits = model(x, keep_prob, img_size, colour_channels, filter_size=3, neurons=2*img_size, num_classes=num_classes)
     cost = calulate_cost(logits, y_true)
-
-    with tf.name_scope('train'):
-        training_op = tf.train.AdamOptimizer(learning_rate=1e-4).minimize(cost)
-
+    training_op = optimizer(cost)
     accuracy = calculate_accuracy(logits, y_true)
 
     summary_op = tf.summary.merge_all()
-    sess = tf.InteractiveSession()
     saver = tf.train.Saver()
     writer = tf.summary.FileWriter(log_dir, graph=tf.get_default_graph())
 
-    restore_or_initialize(sess, saver, checkpoint_dir)
+    with tf.Session() as sess:
 
-    for epoch in range(training_epochs):
+        restore_or_initialize(sess, saver, checkpoint_dir)
 
-        batch_count = int(data.train.num_examples / batch_size)
+        for epoch in range(training_epochs):
 
-        for i in range(batch_count):
+            batch_count = int(data.train.num_examples / batch_size)
 
-            x_batch, y_true_batch, _, cls_batch = data.train.next_batch(batch_size)
-            x_batch = x_batch.reshape(batch_size, flat_img_size)
+            for i in range(batch_count):
 
-            x_test_batch, y_test_batch, _, cls_test_batch = data.test.next_batch(batch_size)
-            x_test_batch = x_test_batch.reshape(batch_size, flat_img_size)
+                x_batch, y_true_batch, _, cls_batch = data.train.next_batch(batch_size)
+                x_batch = x_batch.reshape(batch_size, flat_img_size)
 
-            _, summary = sess.run([training_op, summary_op],
-                                  feed_dict={x: x_batch, y_true: y_true_batch, keep_prob: 0.5})
+                x_test_batch, y_test_batch, _, cls_test_batch = data.test.next_batch(batch_size)
+                x_test_batch = x_test_batch.reshape(batch_size, flat_img_size)
 
-            writer.add_summary(summary, epoch * batch_count + i)
+                _, summary = sess.run([training_op, summary_op],
+                                      feed_dict={x: x_batch, y_true: y_true_batch, keep_prob: 0.5})
 
-        if epoch % 5 == 0:
-            log_progress(sess, saver, cost, accuracy, epoch,
-                         test_feed_dict={x: x_test_batch, y_true: y_test_batch, keep_prob: 1.0},
-                         checkpoint_path=os.path.join(checkpoint_dir, 'model.ckpt'))
+                writer.add_summary(summary, epoch * batch_count + i)
+
+            if epoch % 5 == 0:
+                log_progress(sess, saver, cost, accuracy, epoch,
+                             test_feed_dict={x: x_test_batch, y_true: y_test_batch, keep_prob: 1.0},
+                             checkpoint_path=os.path.join(checkpoint_dir, 'model.ckpt'))
 
 
-def predict(img_dir, model_dir):
+def predict(img_dir, model_dir, img_size=64, colour_channels=3, batch_size=1):
 
     checkpoint_dir = os.path.join(os.path.abspath(model_dir), 'tensorflow/cnn/model')
-    img_size = 64
-    colour_channels = 3
-    num_classes = 2
-    batch_size = 1
-
-    flat_img_size = flat_img_shape(img_size, colour_channels)
 
     data, category_ref = read_img_sets(img_dir + '/predict', img_size)
 
+    flat_img_size = flat_img_shape(img_size, colour_channels)
+
+    num_classes = len(category_ref)
+
     x, y_true, keep_prob = variables(flat_img_size, num_classes)
-
     logits = model(x, keep_prob, img_size, colour_channels, filter_size=3, neurons=2*img_size, num_classes=num_classes)
-
     predict_op = softmax(logits)
 
     with tf.Session() as sess:
