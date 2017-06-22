@@ -18,7 +18,7 @@ class DataSet:
     @property
     def images(self):
         return self._images
-    
+
     @property
     def labels(self):
         return self._labels
@@ -30,11 +30,11 @@ class DataSet:
     @property
     def cls(self):
         return self._cls
-    
+
     @property
     def num_examples(self):
         return self._num_examples
-    
+
     @property
     def epochs_completed(self):
         return self._epochs_completed
