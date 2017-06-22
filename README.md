@@ -57,7 +57,7 @@ the relevant README's first).
 Classifying-Cancer is PEP8 complaint but uses a max-line-length=100.
 This can be checked from the command line with:
 ```unix
-pep8 --statistics --max-line-length=100 classifying-cancer
+pep8 --statistics --max-line-length=120 classifying-cancer
 ```
 
 ## Built With
