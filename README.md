@@ -38,16 +38,32 @@ Continuum's Anaconda distribution is recommended.
 2. Clone the repo:
 `git clone https://github.com/jhole89/classifying-cancer.git`
 
+3. Set the environment: `pip install -r requirements.txt`
+
+    (*Optional*: If applicable you can compile Tensorflow for GPU to
+    achieve significant performance increases)
+
+### Execution
+
+1. Go to the project directory: `cd classifying-cancer`.
+
+2. Run either `python dnn_data_classifier/main.py` or `python
+cnn_image_classifier/main.py` depending on whether you want to classify
+tumour measurements or tumour images (it is recommended that you read
+the relevant README's first).
+
 ### Coding style
 
-Tweet Analyser is PEP8 complaint but uses a max-line-length=100.  This can be checked from the command line with:
+Classifying-Cancer is PEP8 complaint but uses a max-line-length=100.
+This can be checked from the command line with:
 ```unix
 pep8 --statistics --max-line-length=100 classifying-cancer
 ```
 
 ## Built With
 
-* [Python3](https://www.python.org/downloads/) [(Anaconda)](https://www.continuum.io/downloads)
+* [Python3](https://www.python.org/downloads/)
+[(Anaconda)](https://www.continuum.io/downloads)
 * [NumPy](http://www.numpy.org/)
 * [Pandas](http://pandas.pydata.org/)
 * [TensorFlow](https://www.tensorflow.org)
@@ -65,9 +81,14 @@ of this project is bound by the sample license of its parent.
 
 ## License
 
-This project is licensed under the GNU GPL3 License - see the [LICENSE](LICENSE) file for details
+This project is licensed under the GNU GPL3 License - see the
+[LICENSE](LICENSE) file for details
 
 ## Acknowledgments
 
-* breast-cancer-wisconsin.data
-* BreaKHis_v1.tar.gz
+This project makes use of two core data sets for our model training.
+Both are brilliant resources for machine learning and I highly suggest
+reading the relevant papers listed.
+
+* [UCI's Breast Cancer Wisconsin Data Set](https://archive.ics.uci.edu/ml/datasets/Breast+Cancer+Wisconsin+(Diagnostic))
+* [Breast Cancer Histopathological Database](https://web.inf.ufpr.br/vri/breast-cancer-database)
