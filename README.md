@@ -17,12 +17,12 @@ ineffective, and I believed that neural nets could provide a better
 method for classifying cancer.
 
 This repo contains two main sections:
-* dnn_data_classifier - A Deep Neural Network implementation to classify
-breast cancer tumours as benign or malignant depending on measurements
-taken directly from tumours.
-* cnn_image_classifier - A Convolutional Neural Network implementation
-to classify breast tumours as benign or malignant using images of
-histology slides.
+* [dnn_data_classifier](dnn_data_classifier/README.md) - A Deep Neural
+Network implementation to classify breast cancer tumours as benign or
+malignant depending on measurements taken directly from tumours.
+* [cnn_image_classifier](cnn_data_classifier/README.md) - A Convolutional
+Neural Network implementation to classify breast tumours as benign or
+malignant using images of histology slides.
 
 ## Getting Started
 
