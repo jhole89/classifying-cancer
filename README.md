@@ -17,10 +17,10 @@ ineffective, and I believed that neural nets could provide a better
 method for classifying cancer.
 
 This repo contains two main sections:
-* [dnn_data_classifier](dnn_data_classifier/README.md) - A Deep Neural
+* [dnn_data_classifier](dnn_data_classifier) - A Deep Neural
 Network implementation to classify breast cancer tumours as benign or
 malignant depending on measurements taken directly from tumours.
-* [cnn_image_classifier](cnn_data_classifier/README.md) - A Convolutional
+* [cnn_image_classifier](cnn_data_classifier) - A Convolutional
 Neural Network implementation to classify breast tumours as benign or
 malignant using images of histology slides.
 
@@ -45,12 +45,14 @@ Continuum's Anaconda distribution is recommended.
 
 ### Execution
 
-1. Go to the project directory: `cd classifying-cancer`.
+1. Go to the sub-project directory:
+`cd classifying-cancer/dnn_data_classifier` or
+`cd classifying-cancer/cnn_image_classifier` depending on whether you
+want to classify tumour measurements or tumour images (it is recommended
+that you read the relevant README's first).
 
-2. Run either `python dnn_data_classifier/main.py` or `python
-cnn_image_classifier/main.py` depending on whether you want to classify
-tumour measurements or tumour images (it is recommended that you read
-the relevant README's first).
+2. Run the relevant main.py script: `python main.py` or `python
+cnn_image_classifier/main.py`.
 
 ### Coding style
 
