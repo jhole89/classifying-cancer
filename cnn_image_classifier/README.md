@@ -51,7 +51,7 @@ histography images.
     ```
     tensorboard --logdir=cnn_image_classifier/tmp/tensorflow/cnn/logs/cnn_with_summaries
     ```
-    
+
     Note: this is the default log directory as defined in main.py, by
     the model_dir property.
 
